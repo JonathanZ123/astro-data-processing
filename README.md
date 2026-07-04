@@ -1,2 +1,3 @@
 # astro-data-processing
-Python based astronomical data reduction pipeline designed to calibrate, align, and stack raw frames
+Python based astronomical data reduction pipeline designed to calibrate, align, and stack raw frames.
+calibrated image = (raw - darks)/((flats - bias)/normalization factor)
