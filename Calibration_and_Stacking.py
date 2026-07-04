@@ -2,11 +2,11 @@ import glob
 import numpy as np
 import astropy.io.fits as fits
 import matplotlib.pyplot as plt
-
-dark_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Dark30s_Empty_*.fits")
-bias_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Bias_Empty_*.fits")
-flat_files = glob.glob(r"D:\SARA Data\112725RM\3c273\sarm20251111_flat_JohnsonV_*.fits")
-raw_science_files = glob.glob(r"D:\SARA Data\112725RM\3c273\3c273_Johnson_V_*_light.fits")
+# Placeholder paths for GitHub
+dark_files = glob.glob(r"D:\path\to\your\dark\frames\*.fits")
+bias_files = glob.glob(r"D:\path\to\your\bias\frames\*.fits")
+flat_files = glob.glob(r"D:\path\to\your\flat\frames\*.fits")
+raw_science_files = glob.glob(r"D:\path\to\your\science\frames\*.fits")
 
 print("Dark Files Found:",(len(dark_files)))
 print("bias Files Found:",(len(bias_files)))
