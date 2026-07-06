@@ -44,7 +44,7 @@ master_flat[master_flat == 0] = 1
 for raw_file in raw_science_files:
     raw_data = fits.open(raw_file)[0].data
     clean_frame = (raw_data - master_dark) / master_flat
-    calibrated_science_list.append(data)
+    calibrated_science_list.append(clean_frame)
 
 science_cube = np.array(calibrated_science_list)
 final_img_stacked = np.mean(science_cube, axis=0)
