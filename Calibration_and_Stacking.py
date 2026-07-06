@@ -56,8 +56,8 @@ print("Typical Background Level:",bg_level)
 print("Typical Noise Level:",noise)
 print("--------------------------------")
 
-auto_vmin = bg_level - (1 * noise)
-auto_vmax = bg_level + (5 * noise)
+auto_vmin = bg_level - (0.5 * noise)
+auto_vmax = bg_level + (10 * noise)
 
 plt.imshow(final_img_stacked, cmap = 'gray', vmin = auto_vmin, vmax = auto_vmax)
 plt.show()
