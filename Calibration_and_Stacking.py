@@ -88,9 +88,13 @@ try:
         ref_wcs = ast.solve_from_image(temp_ref, solve_timeout=300)
 except Exception as e:
     print(f"An error occurred during reference solve: {e}")
-    print("The Astrometry.net server might be struggling right now. Retrying without hints...")
+    print("The server dropped the connection. Retrying with coordinates hint...")
     try:
-        ref_wcs = ast.solve_from_image(temp_ref, solve_timeout=150)
+        ref_wcs = ast.solve_from_image(temp_ref, 
+                                       center_ra=ra_float, 
+                                       center_dec=dec_float, 
+                                       radius=2.0, 
+                                       solve_timeout=150)
     except:
         ref_wcs = None
 
