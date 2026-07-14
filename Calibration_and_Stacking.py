@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 from astroquery.astrometry_net import AstrometryNet
 from reproject import reproject_interp
-import photutils
 from photutils.detection import DAOStarFinder
 from photutils.background import LocalBackground
 from photutils.psf import CircularGaussianPSF, PSFPhotometry
 
-photutils.future_column_names = True
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+from astropy.utils.exceptions import AstropyWarning
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 load_dotenv()
 API_KEY = os.getenv("ASTROMETRY_API_KEY")
