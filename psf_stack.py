@@ -22,10 +22,10 @@ API_KEY = os.getenv("ASTROMETRY_API_KEY")
 ast = AstrometryNet()
 ast.api_key = API_KEY
 
-dark_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Dark30s_Empty_*.fits")
-bias_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Bias_Empty_*.fits")
-flat_files = glob.glob(r"D:\SARA Data\112725RM\3c273\sarm20251111_flat_JohnsonV_*.fits")[:3]
-raw_science_files = glob.glob(r"D:\SARA Data\112725RM\3c273\3c273_Johnson_V_*_light.fits")[:3]
+dark_files = glob.glob(r"D:\your\file\here_*.fits")
+bias_files = glob.glob(r"D:\your_file_here_*.fits")
+flat_files = glob.glob(r"D:\your_file_here_*.fits")
+raw_science_files = glob.glob(r"D:\your_file_here_*.fits")
 
 print("Dark Files Found:", len(dark_files))
 print("Bias Files Found:", len(bias_files))
