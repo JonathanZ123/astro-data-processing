@@ -12,6 +12,11 @@ from photutils.detection import DAOStarFinder
 from photutils.background import LocalBackground
 from photutils.psf import CircularGaussianPSF, PSFPhotometry
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+from astropy.utils.exceptions import AstropyWarning
+warnings.simplefilter('ignore', category=AstropyWarning)
+
 load_dotenv()
 ast = AstrometryNet()
 ast.api_key = os.getenv("ASTROMETRY_API_KEY")
