@@ -82,7 +82,7 @@ ref_header_solved = ast.solve_from_image(
 # SAFETY 1: Stop immediately if the reference frame fails to solve
 if ref_header_solved is None:
     os.remove("temp_ref.fits")
-    raise RuntimeError("Reference frame failed to plate-solve! The pipeline cannot continue without a base grid.")
+    raise RuntimeError("Reference frame failed to plate-solve")
 
 ref_wcs = WCS(ref_header_solved)
 os.remove("temp_ref.fits")
