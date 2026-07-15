@@ -24,8 +24,8 @@ ast.api_key = os.getenv("ASTROMETRY_API_KEY")
 
 dark_files = glob.glob(r"D:\your\path\here_*.fits")
 bias_files = glob.glob(r"D:\your\path\here_*.fits")
-flat_files = glob.glob(r"D:\your\path\here_*.fits")[:3]
-raw_science_files = glob.glob(r"D:\your\path\here_*.fits")[:3]
+flat_files = glob.glob(r"D:\your\path\here_*.fits")
+raw_science_files = glob.glob(r"D:\your\path\here_*.fits")
 
 dark_list = []
 bias_list = []
