@@ -19,11 +19,13 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 
 load_dotenv()
 API_KEY = os.getenv("ASTROMETRY_API_KEY")
+ast = AstrometryNet()
+ast.api_key = API_KEY
 
-dark_files = glob.glob(r"D:\your\file\here_*.fits")
-bias_files = glob.glob(r"D:\your\file\here_*.fits")
-flat_files = glob.glob(r"D:\your\file\here_*.fits")
-raw_science_files = glob.glob(r"D:\your\file\here_*.fits")
+dark_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Dark30s_Empty_*.fits")
+bias_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Bias_Empty_*.fits")
+flat_files = glob.glob(r"D:\SARA Data\112725RM\3c273\sarm20251111_flat_JohnsonV_*.fits")[:3]
+raw_science_files = glob.glob(r"D:\SARA Data\112725RM\3c273\3c273_Johnson_V_*_light.fits")[:3]
 
 print("Dark Files Found:", len(dark_files))
 print("Bias Files Found:", len(bias_files))
@@ -63,18 +65,22 @@ for raw_file in raw_science_files:
     clean_frame = (hdu.data - master_dark) / master_flat
     calibrated_science_list.append(clean_frame)
 
-ast = AstrometryNet()
-ast.api_key = API_KEY
-
 ref_data = calibrated_science_list[0]
 ref_header = raw_science_headers[0]
 
+# Note: Astrometry.net requires a physical FITS file on disk to run its API upload.
 temp_ref = "temp_ref.fits"
 hdu_ref = fits.PrimaryHDU(data=ref_data, header=ref_header)
 hdu_ref.writeto(temp_ref, overwrite=True)
 
 ref_wcs = None
 
+# SAFETY 2: Reference Frame Metadata Verification & Fallback Solver
+# 1. Checks if 'RA' and 'DEC' exist in the FITS header before attempting to 
+#    parse them. If missing, it falls back to a blind solve.
+# 2. Catches network drops or server timeouts (Exception). If the server drops 
+#    while solving with RA/Dec hints, it retries a blind solve with a shorter 
+#    timeout as a backup plan.
 try:
     ra_hint = ref_header.get('RA')
     dec_hint = ref_header.get('DEC')
@@ -99,12 +105,21 @@ except Exception as e:
     except:
         ref_wcs = None
 
+# SAFETY 3: Protected File Deletion (Reference File)
+# Checks if the temporary FITS file exists before deleting. If Windows 
+# locks the file or permission is denied, it catches the error and warns you 
+# instead of crashing the pipeline.
 if os.path.exists(temp_ref):
     try:
         os.remove(temp_ref)
     except Exception as file_err:
         print(f"Temporary file cleanup warning: {file_err} (You can ignore this)")
 
+
+# SAFETY 4: Reference Frame Quality Gate / Stop Block
+# Since you cannot align images without a base reference coordinate 
+# system, this explicitly stops execution and raises a descriptive error if the 
+# reference image WCS failed to resolve.
 if ref_wcs is None:
     raise RuntimeError("Could not plate-solve the reference frame due to network drops. Pipeline stopped.")
 
@@ -119,7 +134,10 @@ for i in range(1, len(calibrated_science_list)):
     hdu_curr.writeto(temp_current, overwrite=True)
     
     print(f"Solving frame {i+1} of {len(calibrated_science_list)}...")
-    
+
+    # SAFETY 5: Metadata Protection & Blind Solve Loop Fallback
+    # Similar to the reference frame, it checks for 'RA' and 'DEC' in 
+    # current headers and uses blind solving if the coordinates are missing.
     current_ra = current_header.get('RA')
     current_dec = current_header.get('DEC')
     
@@ -134,6 +152,10 @@ for i in range(1, len(calibrated_science_list)):
         else:
             current_wcs = ast.solve_from_image(temp_current, solve_timeout=300)
             
+        # SAFETY 6: Alignment Gate (Skipping Bad Frames)
+        # If a single middle image fails to plate-solve, this stops the 
+        # script from feeding a blank output (`None`) into reproject_interp
+        # Instead, it skips only this bad frame and keeps going.
         if current_wcs is not None:
             print(f"Aligning frame {i+1} to reference grid...")
             aligned_array, footprint = reproject_interp(
@@ -145,9 +167,15 @@ for i in range(1, len(calibrated_science_list)):
         else:
             print(f"Warning: Skipping frame {i+1} because it couldn't be plate-solved.")
             
+    # SAFETY 7: Loop Crash Protection
+    # Catches any unexpected crashes (such as network disconnects, reprojection errors, etc.)
+    # and keeps the loop running, preventing one error from ruining the processing of all other images.
     except Exception as e:
         print(f"Warning: Error processing frame {i+1}: {e}. Skipping.")
         
+    # SAFETY 8: Protected File Deletion
+    # Cleans up the temporary frame FITS files even if the solve or 
+    # alignment steps crashed midway, preventing your hard drive from filling up.
     if os.path.exists(temp_current):
         try:
             os.remove(temp_current)
