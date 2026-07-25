@@ -24,5 +24,5 @@ This pipeline relies on **Astrometry.net** running locally inside **Windows Subs
 ### 2. Python Environment
 Install the required Python packages using `pip`:
 
-```bash
+```
 pip install numpy astropy matplotlib reproject photutils astroquery
