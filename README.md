@@ -6,7 +6,7 @@ A Python-based astronomical data reduction pipeline designed to calibrate raw sc
 
 ## Image Calibration Formula
 
-Raw science images are calibrated frame-by-frame using standard CCD calibration equations:
+Raw science images are calibrated frame-by-frame using standard calibration equations:
 
 $$\text{Calibrated Image} = \frac{\text{Raw Science} - \text{Master Dark}}{\left( \frac{\text{Raw Flat} - \text{Master Bias}}{\text{Normalization Factor}} \right)}$$
 
