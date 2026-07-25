@@ -81,10 +81,9 @@ else:
     raise RuntimeError("Failed to plate-solve the reference frame.")
 
 # Clean up all temporary files created by the solver
-for ext in [".fits", ".new", ".solved", ".wcs", ".rdls", ".axy", ".match"]:
-    file_to_remove = f"temp_ref{ext}"
-    if os.path.exists(file_to_remove):
-        os.remove(file_to_remove)
+for temp_file in glob.glob("temp_ref*"):
+    if os.path.exists(temp_file):
+        os.remove(temp_file)
 
 # ==========================================
 # Alignment Loop
@@ -116,7 +115,7 @@ for i in range(1, len(calibrated_science_list)):
     if os.path.exists(solved_filename):
         current_wcs = WCS(fits.getheader(solved_filename))
         
-        # Reproject/align to our reference frame
+        # Reproject/align to the reference frame
         aligned_array, _ = reproject_interp(
             (current_data, current_wcs), 
             output_projection=ref_wcs, 
@@ -127,11 +126,9 @@ for i in range(1, len(calibrated_science_list)):
         print(f"Warning: Frame {i+1} failed to solve locally. Skipping.")
         
     # Clean up loop files
-    base_name = temp_current.replace(".fits", "")
-    for ext in [".fits", ".new", ".solved", ".wcs", ".rdls", ".axy", ".match"]:
-        file_to_remove = f"{base_name}{ext}"
-        if os.path.exists(file_to_remove):
-            os.remove(file_to_remove)
+    for temp_file in glob.glob(f"temp_frame_{i}*"):
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
 
 # --- Stacking with Sigma Clipping and NaN Protections ---
 aligned_cube = np.array(aligned_science_list, dtype=float)      # Take all my aligned images and bundle them into one 3D floating-point data cube.
