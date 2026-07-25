@@ -8,20 +8,21 @@ from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 from reproject import reproject_interp
+from astropy.stats import sigma_clip
+from astropy.nddata import NDData
 from photutils.detection import DAOStarFinder
 from photutils.background import LocalBackground
-from photutils.psf import CircularGaussianPSF, PSFPhotometry
-from astropy.stats import sigma_clip
+from photutils.psf import EPSFBuilder, PSFPhotometry, extract_stars
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from astropy.utils.exceptions import AstropyWarning
 warnings.simplefilter('ignore', category=AstropyWarning)
 
-dark_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Dark30s_Empty_*.fits")
-bias_files = glob.glob(r"D:\SARA Data\112725RM\3c273\Bias_Empty_*.fits")
-flat_files = glob.glob(r"D:\SARA Data\112725RM\3c273\sarm20251111_flat_JohnsonV_*.fits")[:3]
-raw_science_files = glob.glob(r"D:\SARA Data\112725RM\3c273\3c273_Johnson_V_*_light.fits")[:3]
+dark_files = glob.glob(r"D:\your\file\here_*.fits")
+bias_files = glob.glob(r"D:\your\file\here_*.fits")
+flat_files = glob.glob(r"D:\your\file\here_*.fits")
+raw_science_files = glob.glob(r"D:\your\file\here_*.fits")
 
 print("Dark Files Found:", len(dark_files))
 print("Bias Files Found:", len(bias_files))
@@ -158,16 +159,45 @@ print("--------------------------------")
 print("Typical Background Level:", bg_level)
 print("Typical Noise Level:", noise)
 
-# --- Photometry Engine ---
-final_engine = PSFPhotometry(
-    psf_model=CircularGaussianPSF(fwhm=5.0),
-    fit_shape=(11, 11),
-    finder=DAOStarFinder(threshold=1.5 * noise, fwhm=5.0),
-    local_bkg_estimator=LocalBackground(inner_radius=15, outer_radius=25),
-    aperture_radius=5.0
-)
+# --- ePSF Photometry Engine ---
+# 1. High-threshold detection pass for bright PSF candidate stars
+psf_finder = DAOStarFinder(threshold=5.0 * noise, fwhm=5.0)
+star_catalog = psf_finder(final_img_stacked)
 
-phot_table = final_engine(data=final_img_stacked)
+if star_catalog is not None and len(star_catalog) > 0:
+    nddata = NDData(data=final_img_stacked)
+    
+    # Filter stars too close to edges to allow complete 15x15 cutouts
+    edge_margin = 15
+    h, w = final_img_stacked.shape
+    valid_stars = star_catalog[
+        (star_catalog['xcentroid'] > edge_margin) &
+        (star_catalog['xcentroid'] < w - edge_margin) &
+        (star_catalog['ycentroid'] > edge_margin) &
+        (star_catalog['ycentroid'] < h - edge_margin)
+    ]
+    
+    stars_tbl = valid_stars['xcentroid', 'ycentroid']
+    stars_tbl.rename_column('xcentroid', 'x')
+    stars_tbl.rename_column('ycentroid', 'y')
+
+    # 2. Extract cutouts and build empirical PSF model
+    stars = extract_stars(nddata, stars_tbl, size=15)
+    epsf_builder = EPSFBuilder(shape=None, maxiters=10, progress_bar=False)
+    epsf, fitted_stars = epsf_builder(stars)
+
+    # 3. Perform profile-fitting photometry using built ePSF
+    final_engine = PSFPhotometry(
+        psf_model=epsf,
+        fit_shape=(11, 11),
+        finder=DAOStarFinder(threshold=1.5 * noise, fwhm=5.0),
+        local_bkg_estimator=LocalBackground(inner_radius=15, outer_radius=25),
+        aperture_radius=5.0
+    )
+
+    phot_table = final_engine(data=final_img_stacked)
+else:
+    phot_table = None
 
 print("--------------------------------")
 if phot_table is not None and len(phot_table) > 0:
