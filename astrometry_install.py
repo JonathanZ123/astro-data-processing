@@ -38,6 +38,7 @@ for scale in 5200 5201 5202 5203 5204; do
     for patch in {00..05}; do
         wget https://portal.nersc.gov/project/cosmo/temp/dstn/index-5200/LITE/index-${scale}-${patch}.fits
     done
+done
 
 for scale in {5200..5204}; do
     for patch in 12 13 14 15 26 27 28; do
