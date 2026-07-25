@@ -12,19 +12,16 @@ $$\text{Calibrated Image} = \frac{\text{Raw Science} - \text{Master Dark}}{\left
 
 ---
 
-## Features
+## Prerequisites & Installation
 
-* **Calibration:** Automated creation of Master Dark, Master Bias, and normalized Master Flat frames.
-* **Astrometry:** Local plate-solving using `Astrometry.net` via Windows Subsystem for Linux (WSL).
-* **Alignment & Stacking:** Multi-frame image registration via `reproject` and robust outlier rejection using sigma clipping (`astropy.stats.sigma_clip`).
-* **ePSF Photometry:** Empirical PSF model construction using `photutils.psf.EPSFBuilder` and star extraction for accurate flux measurement.
+### 1. Windows Subsystem for Linux (WSL) & Astrometry.net
+This pipeline relies on **Astrometry.net** running locally inside **Windows Subsystem for Linux (WSL)** to plate-solve coordinate headers. 
+
+> 📌 **Installation Instructions:** > For complete step-by-step terminal commands on how to install WSL, set up Astrometry.net, configure optional D: drive storage, and download necessary index files, please follow the guide in [`astrometry_install.py`](./astrometry_install.py).
 
 ---
 
-## Prerequisites & Installation
-
-### 1. Python Environment
-
+### 2. Python Environment
 Install the required Python packages using `pip`:
 
 ```bash
