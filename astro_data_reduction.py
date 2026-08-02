@@ -30,9 +30,19 @@ print("Flat Files Found:", len(flat_files))
 print("Raw Science Files Found:", len(raw_science_files))
 print("--------------------------------")
 
-dark_list = [fits.open(f)[0].data for f in dark_files]
-bias_list = [fits.open(f)[0].data for f in bias_files]
-flat_list = [fits.open(f)[0].data for f in flat_files]
+dark_list, bias_list, flat_list = [], [], []
+
+for f in dark_files:
+    with fits.open(f) as hdul:
+        dark_list.append(hdul[0].data.copy())
+
+for f in bias_files:
+    with fits.open(f) as hdul:
+        bias_list.append(hdul[0].data.copy())
+
+for f in flat_files:
+    with fits.open(f) as hdul:
+        flat_list.append(hdul[0].data.copy())
 
 master_dark = np.median(np.array(dark_list), axis=0)
 master_bias = np.median(np.array(bias_list), axis=0)
@@ -45,9 +55,12 @@ calibrated_science_list = []
 raw_science_headers = []
 
 for file in raw_science_files:
-    hdu = fits.open(file)[0]
-    raw_science_headers.append(hdu.header)
-    calibrated_science_list.append((hdu.data - master_dark) / master_flat)
+    with fits.open(file) as hdul:
+        data = hdul[0].data.copy()
+        header = hdul[0].header.copy()
+        
+    raw_science_headers.append(header)
+    calibrated_science_list.append((data - master_dark) / master_flat)
 
 ref_data = calibrated_science_list[0]
 ref_header = raw_science_headers[0]
