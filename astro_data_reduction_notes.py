@@ -33,9 +33,19 @@ print("Raw Science Files Found:", len(raw_science_files))
 print("--------------------------------")
 
 # Extract raw 2D pixel matrices from primary HDUs
-dark_list = [fits.open(f)[0].data for f in dark_files]
-bias_list = [fits.open(f)[0].data for f in bias_files]
-flat_list = [fits.open(f)[0].data for f in flat_files]
+dark_list, bias_list, flat_list = [], [], []
+
+for f in dark_files:
+    with fits.open(f) as hdul:
+        dark_list.append(hdul[0].data.copy())
+
+for f in bias_files:
+    with fits.open(f) as hdul:
+        bias_list.append(hdul[0].data.copy())
+
+for f in flat_files:
+    with fits.open(f) as hdul:
+        flat_list.append(hdul[0].data.copy())
 
 # Combine calibration frames into master calibration images
 master_dark = np.median(np.array(dark_list), axis=0)  # Median-combine dark frames to remove thermal noise.
@@ -48,10 +58,12 @@ master_flat[master_flat == 0] = 1  # Prevent divide-by-zero errors by setting ze
 calibrated_science_list = []  # Storage list for calibrated science pixel arrays.
 raw_science_headers = []      # Storage list for corresponding FITS headers.
 
-for file in raw_science_files:  # Loop through each raw science frame path.
-    hdu = fits.open(file)[0]  # Open FITS file and extract primary HDU object.
-    raw_science_headers.append(hdu.header)  # Save frame header metadata.
-    calibrated_science_list.append((hdu.data - master_dark) / master_flat)  # Calibrate science data: (Raw - Dark) / Flat.
+for file in raw_science_files:       # Loop through each raw science frame path.
+    with fits.open(file) as hdul:    # Open FITS file and extract primary HDU object.
+        data = hdul[0].data.copy()
+        header = hdul[0].header.copy()
+    raw_science_headers.append(header)    # Save frame header metadata.
+    calibrated_science_list.append((data - master_dark) / master_flat)    # Calibrate science data: (Raw - Dark) / Flat.
 
 # ==========================================
 # Solving Reference Frame
