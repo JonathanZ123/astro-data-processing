@@ -37,7 +37,7 @@ dark_list, bias_list, flat_list = [], [], []
 
 for f in dark_files:
     with fits.open(f) as hdul:
-        dark_list.append(hdul[0].data.copy())
+        dark_list.append(hdul[0].data.copy())    # Extract data into RAM and auto-close file handle
 
 for f in bias_files:
     with fits.open(f) as hdul:
