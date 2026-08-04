@@ -87,7 +87,7 @@ command_ref = (
     f"--overwrite --no-plots"                       # Overwrite existing outputs and suppress plot generation.
 )
 
-print("Solving reference frame via WSL...")  # Status message.
+print("Solving reference frame via WSL...")
 subprocess.run(command_ref, shell=True)      # Run plate-solver in system shell.
 
 # Load newly created WCS header from solver output
