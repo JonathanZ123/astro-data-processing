@@ -16,9 +16,9 @@ from pipeline_utils import (
 
 
 # Change only this root if the observing-night directory moves.
-DATA_ROOT = Path(r"D:\SARA Data\101025CT")
-CALIBRATION_DIR = DATA_ROOT / "3c454"
-SCIENCE_DIR = DATA_ROOT / "NGC253"
+DATA_ROOT = Path(r"D:\main\path")
+CALIBRATION_DIR = DATA_ROOT / "calibration_path"
+SCIENCE_DIR = DATA_ROOT / "science_path"
 OUTPUT_DIR = SCIENCE_DIR / "reduced_rgb"
 
 FILTERS = ("R", "G", "B")
