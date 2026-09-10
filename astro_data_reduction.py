@@ -14,8 +14,6 @@ from pipeline_utils import (
     run_psf_photometry,
 )
 
-
-# Change only this root if the observing-night directory moves.
 DATA_ROOT = Path(r"D:\main\path")
 CALIBRATION_DIR = DATA_ROOT / "calibration_path"
 SCIENCE_DIR = DATA_ROOT / "science_path"
@@ -60,8 +58,6 @@ def main():
         )
 
     master_bias = build_master_bias(bias_files)
-    # All science and dark exposures in this dataset have the same duration.
-    # Therefore the raw master dark can be subtracted directly without scaling.
     master_dark = build_master_dark(dark_files)
 
     channel_stacks = {}
