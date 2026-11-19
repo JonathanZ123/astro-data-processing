@@ -11,7 +11,7 @@ import astropy.units as u
 import numpy as np
 import sep
 from reproject import reproject_interp
-from scipy.ndimage import gaussian_filter, shift as ndi_shift
+from scipy.ndimage import gaussian_filter, median_filter, shift as ndi_shift
 from skimage.registration import phase_cross_correlation
 from astropy.coordinates import SkyCoord
 from astropy.nddata import NDData
@@ -75,6 +75,34 @@ def calibrate_science(path, master_dark, master_flat):
     return calibrated, header.copy()
 
 
+def _star_enhanced_image(image, filter_size=31):
+    image = np.asarray(image, dtype=np.float32).copy()
+
+    finite = np.isfinite(image)
+    if not finite.any():
+        raise ValueError("Image has no finite pixels")
+
+    image[~finite] = np.nanmedian(image)
+
+    smooth_background = median_filter(
+        image,
+        size=filter_size,
+        mode="reflect",
+    )
+
+    star_image = image - smooth_background
+
+    low, high = np.percentile(star_image, [0.5, 99.9])
+    star_image = np.clip(star_image, low, high)
+    star_image -= np.median(star_image)
+
+    return np.require(
+        star_image,
+        dtype=np.float32,
+        requirements=["C", "A", "O", "W"],
+    )
+
+
 def _detection_image(image):
     """Create the native-endian, finite C array expected by SEP/Astroalign."""
     image = np.asarray(image, dtype=np.float64)
@@ -104,7 +132,7 @@ def _alignment_score(image):
 
 def _control_points(image, detection_sigma=3.0, min_area=5, maximum=100):
     """Extract bright-source coordinates without Astroalign's exception masking."""
-    detection = _detection_image(image)
+    detection = _detection_image(_star_enhanced_image(image))
     try:
         background = sep.Background(detection)
         threshold = detection_sigma * background.globalrms
@@ -130,28 +158,93 @@ def _control_points(image, detection_sigma=3.0, min_area=5, maximum=100):
 
 
 def solve_reference_wcs(image, header, filter_name):
-    """Plate-solve one reference frame through the local WSL Astrometry.net install."""
+    """Plate-solve one star-enhanced reference frame with Astrometry.net."""
     if "RA" not in header or "DEC" not in header:
         raise KeyError("Reference FITS header must contain RA and DEC")
 
     stem = f"temp_ref_{filter_name}"
     input_path = Path(f"{stem}.fits")
     solved_path = Path(f"{stem}.new")
-    fits.PrimaryHDU(data=image, header=header).writeto(input_path, overwrite=True)
 
-    coord = SkyCoord(f"{header['RA']} {header['DEC']}", unit=(u.hourangle, u.deg))
-    command = [
-        "wsl", "solve-field", str(input_path),
-        "--ra", str(coord.ra.deg), "--dec", str(coord.dec.deg),
-        "--radius", "2.0", "--downsample", "2", "--overwrite", "--no-plots",
+    # Suppress the extended galaxy only in the temporary solving image.
+    solve_image = _star_enhanced_image(image)
+
+    fits.PrimaryHDU(
+        data=solve_image,
+        header=header,
+    ).writeto(
+        input_path,
+        overwrite=True,
+    )
+
+    coord = SkyCoord(
+        f"{header['RA']} {header['DEC']}",
+        unit=(u.hourangle, u.deg),
+    )
+
+    base_command = [
+        "wsl",
+        "solve-field",
+        str(input_path),
+        "--ra",
+        str(coord.ra.deg),
+        "--dec",
+        str(coord.dec.deg),
+        "--radius",
+        "2.0",
+        "--overwrite",
+        "--no-plots",
+        "--no-verify",
     ]
+
+    attempts = [
+        [
+            "--downsample",
+            "2",
+            "--depth",
+            "20,40,80,120,200",
+            "--resort",
+        ],
+        [
+            "--downsample",
+            "1",
+            "--depth",
+            "20,40,80,120,200",
+            "--resort",
+        ],
+        [
+            "--downsample",
+            "2",
+            "--depth",
+            "50,100,200,300",
+        ],
+    ]
+
     try:
-        result = subprocess.run(command, check=False)
-        if result.returncode != 0 or not solved_path.exists():
-            raise RuntimeError(
-                f"Astrometry.net did not create {solved_path}; return code={result.returncode}"
+        for attempt_number, options in enumerate(attempts, start=1):
+            print(
+                f"Astrometry attempt {attempt_number} "
+                f"for the {filter_name} reference..."
             )
-        return WCS(fits.getheader(solved_path))
+
+            result = subprocess.run(
+                base_command + options,
+                check=False,
+            )
+
+            if result.returncode == 0 and solved_path.exists():
+                return WCS(fits.getheader(solved_path))
+
+            print(
+                f"Attempt {attempt_number} did not solve "
+                f"the {filter_name} reference."
+            )
+
+        raise RuntimeError(
+            f"Astrometry.net failed to solve the {filter_name} "
+            "reference after all attempts."
+        )
+
     finally:
         for path in glob.glob(f"{stem}*"):
             try:
