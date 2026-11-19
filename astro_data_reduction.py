@@ -14,17 +14,50 @@ from pipeline_utils import (
     run_psf_photometry,
 )
 
-DATA_ROOT = Path(r"D:\main\path")
-CALIBRATION_DIR = DATA_ROOT / "calibration_path"
-SCIENCE_DIR = DATA_ROOT / "science_path"
-OUTPUT_DIR = SCIENCE_DIR / "reduced_rgb"
+
+# ============================================================
+# USER CONFIGURATION
+# Change this section when processing a different object.
+# I have included examples of what mine have looked like, but you need to change it according to your object and file location.
+# Also, you can change Run_PSF_Photometry to False if you are not interested in data, just creating an image.
+# ============================================================
+
+OBJECT_NAME = "NGC253"
+
+DATA_ROOT = Path(r"D:\SARA Data\101025CT")
+CALIBRATION_DIR = DATA_ROOT / "NGC253"
+SCIENCE_DIR = DATA_ROOT / "NGC253"
+OUTPUT_DIR = SCIENCE_DIR / f"{OBJECT_NAME}_reduced_rgb"
 
 FILTERS = ("R", "G", "B")
-RUN_PSF_PHOTOMETRY = False
+
+BIAS_PATTERN = "NGC253_None_bias_*.fits"
+DARK_PATTERN = "NGC253_None_dark_*.fits"
+
+SCIENCE_PATTERNS = {
+    "R": "NGC253_Bessell_R_*.fits",
+    "G": "NGC253_Bessell_V_*.fits",
+    "B": "NGC253_Bessell_B_*.fits",
+}
+
+FLAT_PATTERNS = {
+    "R": "NGC23_Bessell_R_flat_*.fits",
+    "G": "NGC253_Bessell_V_flat_*.fits",
+    "B": "NGC253_Bessell_B_flat_*.fits",
+}
+
+RUN_PSF_PHOTOMETRY = True
 DETECTION_SIGMA = 3.0
+
+
+# ============================================================
+# PIPELINE
+# Nothing below this point normally needs to be renamed.
+# ============================================================
 
 def sorted_glob(pattern):
     return sorted(glob.glob(str(pattern)))
+
 
 def output_header(reference_header, reference_wcs):
     header = reference_header.copy()
@@ -32,20 +65,22 @@ def output_header(reference_header, reference_wcs):
         header.update(reference_wcs.to_header(relax=True))
     return header
 
+
 def main():
-    bias_files = sorted_glob(CALIBRATION_DIR / "name_of_bias_*.fits")
-    dark_files = sorted_glob(CALIBRATION_DIR / "name_of_dark_*.fits")
+    bias_files = sorted_glob(CALIBRATION_DIR / BIAS_PATTERN)
+    dark_files = sorted_glob(CALIBRATION_DIR / DARK_PATTERN)
+
     science_files = {
-        "R": sorted_glob(SCIENCE_DIR / "Bessell_R_*.fits"),
-        "G": sorted_glob(SCIENCE_DIR / "Bessell_V_*.fits"),
-        "B": sorted_glob(SCIENCE_DIR / "Bessell_B_*.fits"),
-    }
-    flat_files = {
-        "R": sorted_glob(CALIBRATION_DIR / "Bessell_R__flat_*.fits"),
-        "G": sorted_glob(CALIBRATION_DIR / "Bessell_V__flat_*.fits"),
-        "B": sorted_glob(CALIBRATION_DIR / "Bessell_B__flat_*.fits"),
+        channel: sorted_glob(SCIENCE_DIR / SCIENCE_PATTERNS[channel])
+        for channel in FILTERS
     }
 
+    flat_files = {
+        channel: sorted_glob(CALIBRATION_DIR / FLAT_PATTERNS[channel])
+        for channel in FILTERS
+    }
+
+    print(f"Object: {OBJECT_NAME}")
     print(f"Bias files: {len(bias_files)}")
     print(f"Dark files: {len(dark_files)}")
     for channel in FILTERS:
@@ -61,27 +96,36 @@ def main():
     channel_flats = {}
     channel_wcs = {}
     r_header = None
-
+    
     for channel in FILTERS:
-        stack, wcs_solution, reference_header, master_flat, failures = process_channel(
-            filter_name=channel,
-            raw_files=science_files[channel],
-            flat_files=flat_files[channel],
-            master_bias=master_bias,
-            master_dark=master_dark,
-            solve_wcs=True,
-            detection_sigma=DETECTION_SIGMA,
+        stack, wcs_solution, reference_header, master_flat, failures = (
+            process_channel(
+                filter_name=channel,
+                raw_files=science_files[channel],
+                flat_files=flat_files[channel],
+                master_bias=master_bias,
+                master_dark=master_dark,
+                solve_wcs=True,
+                detection_sigma=DETECTION_SIGMA,
+            )
         )
+
         channel_stacks[channel] = stack
         channel_flats[channel] = master_flat
         channel_wcs[channel] = wcs_solution
+
         if channel == "R":
             r_header = reference_header
+
+        if failures:
+            print(f"{channel}: {len(failures)} frame(s) were skipped.")
 
     print("\n==========================================")
     print(" REPROJECTING SOLVED G AND B STACKS TO THE R WCS GRID")
     print("==========================================")
+
     aligned = {"R": channel_stacks["R"]}
+
     for channel in ("G", "B"):
         registered, footprint = reproject_to_reference(
             channel_stacks[channel],
@@ -92,28 +136,48 @@ def main():
         aligned[channel] = registered
         print(
             f"{channel}->R: WCS reprojection complete; "
-            f"valid footprint={100*np.mean(footprint > 0):.2f}%"
+            f"valid footprint={100 * np.mean(footprint > 0):.2f}%"
         )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     header = output_header(r_header, channel_wcs["R"])
+
     for channel in FILTERS:
-        fits.PrimaryHDU(aligned[channel], header=header).writeto(
-            OUTPUT_DIR / f"NGC253_{channel}_stack_aligned_to_R.fits",
-            overwrite=True,
-        )
-        fits.PrimaryHDU(channel_flats[channel]).writeto(
-            OUTPUT_DIR / f"master_flat_{channel}.fits",
+        fits.PrimaryHDU(
+            aligned[channel],
+            header=header,
+        ).writeto(
+            OUTPUT_DIR
+            / f"{OBJECT_NAME}_{channel}_stack_aligned_to_R.fits",
             overwrite=True,
         )
 
-    fits.PrimaryHDU(master_bias).writeto(OUTPUT_DIR / "master_bias.fits", overwrite=True)
-    fits.PrimaryHDU(master_dark).writeto(OUTPUT_DIR / "master_dark.fits", overwrite=True)
+        fits.PrimaryHDU(
+            channel_flats[channel]
+        ).writeto(
+            OUTPUT_DIR / f"{OBJECT_NAME}_master_flat_{channel}.fits",
+            overwrite=True,
+        )
+
+    fits.PrimaryHDU(master_bias).writeto(
+        OUTPUT_DIR / f"{OBJECT_NAME}_master_bias.fits",
+        overwrite=True,
+    )
+
+    fits.PrimaryHDU(master_dark).writeto(
+        OUTPUT_DIR / f"{OBJECT_NAME}_master_dark.fits",
+        overwrite=True,
+    )
 
     if RUN_PSF_PHOTOMETRY:
         table = run_psf_photometry(aligned["G"])
+
         if table is not None:
-            table.write(OUTPUT_DIR / "G_channel_psf_photometry.ecsv", overwrite=True)
+            table.write(
+                OUTPUT_DIR
+                / f"{OBJECT_NAME}_G_channel_psf_photometry.ecsv",
+                overwrite=True,
+            )
             table.pprint(max_lines=20, max_width=150)
             print(f"PSF photometry: {len(table)} sources")
 
@@ -124,12 +188,20 @@ def main():
             normalize_channel(aligned["B"]),
         ]
     )
-    print('========================================================')
-    plt.imsave(OUTPUT_DIR / "RGB.png", rgb, origin="lower")
+
+    rgb_path = OUTPUT_DIR / f"{OBJECT_NAME}_RGB.png"
+    plt.imsave(rgb_path, rgb, origin="lower")
+
     plt.figure(figsize=(10, 10))
     plt.imshow(rgb, origin="lower")
+    plt.title(f"{OBJECT_NAME} BVR Composite")
+    plt.axis("off")
+    plt.tight_layout()
     plt.show()
+
     print(f"\nFinished. Products saved in: {OUTPUT_DIR}")
+    print(f"RGB image: {rgb_path}")
+
 
 if __name__ == "__main__":
     main()
