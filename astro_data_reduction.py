@@ -114,6 +114,7 @@ def main():
         table = run_psf_photometry(aligned["G"])
         if table is not None:
             table.write(OUTPUT_DIR / "G_channel_psf_photometry.ecsv", overwrite=True)
+            table.pprint(max_lines=20, max_width=150)
             print(f"PSF photometry: {len(table)} sources")
 
     rgb = np.dstack(
@@ -124,7 +125,6 @@ def main():
         ]
     )
     print('========================================================')
-    table.pprint(max_lines=20, max_width=150)
     plt.imsave(OUTPUT_DIR / "RGB.png", rgb, origin="lower")
     plt.figure(figsize=(10, 10))
     plt.imshow(rgb, origin="lower")
