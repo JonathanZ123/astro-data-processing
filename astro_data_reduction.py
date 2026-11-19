@@ -23,10 +23,8 @@ FILTERS = ("R", "G", "B")
 RUN_PSF_PHOTOMETRY = False
 DETECTION_SIGMA = 3.0
 
-
 def sorted_glob(pattern):
     return sorted(glob.glob(str(pattern)))
-
 
 def output_header(reference_header, reference_wcs):
     header = reference_header.copy()
@@ -34,19 +32,18 @@ def output_header(reference_header, reference_wcs):
         header.update(reference_wcs.to_header(relax=True))
     return header
 
-
 def main():
-    bias_files = sorted_glob(CALIBRATION_DIR / "3c454_None__bias_*.fits")
-    dark_files = sorted_glob(CALIBRATION_DIR / "3c454_None__dark_*.fits")
+    bias_files = sorted_glob(CALIBRATION_DIR / "name_of_bias_*.fits")
+    dark_files = sorted_glob(CALIBRATION_DIR / "name_of_dark_*.fits")
     science_files = {
-        "R": sorted_glob(SCIENCE_DIR / "NGC253_Bessell_R_*.fits"),
-        "G": sorted_glob(SCIENCE_DIR / "NGC253_Bessell_V_*.fits"),
-        "B": sorted_glob(SCIENCE_DIR / "NGC253_Bessell_B_*.fits"),
+        "R": sorted_glob(SCIENCE_DIR / "Bessell_R_*.fits"),
+        "G": sorted_glob(SCIENCE_DIR / "Bessell_V_*.fits"),
+        "B": sorted_glob(SCIENCE_DIR / "Bessell_B_*.fits"),
     }
     flat_files = {
-        "R": sorted_glob(CALIBRATION_DIR / "3c454_Bessell_R__flat_*.fits"),
-        "G": sorted_glob(CALIBRATION_DIR / "3c454_Bessell_V__flat_*.fits"),
-        "B": sorted_glob(CALIBRATION_DIR / "3c454_Bessell_B__flat_*.fits"),
+        "R": sorted_glob(CALIBRATION_DIR / "Bessell_R__flat_*.fits"),
+        "G": sorted_glob(CALIBRATION_DIR / "Bessell_V__flat_*.fits"),
+        "B": sorted_glob(CALIBRATION_DIR / "Bessell_B__flat_*.fits"),
     }
 
     print(f"Bias files: {len(bias_files)}")
@@ -128,12 +125,11 @@ def main():
     )
     print('========================================================')
     table.pprint(max_lines=20, max_width=150)
-    plt.imsave(OUTPUT_DIR / "NGC253_RGB.png", rgb, origin="lower")
+    plt.imsave(OUTPUT_DIR / "RGB.png", rgb, origin="lower")
     plt.figure(figsize=(10, 10))
     plt.imshow(rgb, origin="lower")
     plt.show()
     print(f"\nFinished. Products saved in: {OUTPUT_DIR}")
-
 
 if __name__ == "__main__":
     main()
